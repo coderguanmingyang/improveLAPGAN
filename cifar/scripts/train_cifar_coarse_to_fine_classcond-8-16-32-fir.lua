@@ -356,12 +356,15 @@ epoch = epoch or 1
 for i = 1,50 do  --scale 8
 
   if i == 1 then
-    genImageBuff_sc8 = adversarial8.genBuff(400)
+    genImageBuff_sc8, genLableBuff_sc8  = adversarial8.genBuff(200)
     print('first\n')
     print(genImageBuff_sc8:size())
   end
-  genImageBuff_sc8 = torch.cat(genImageBuff_sc8, adversarial8.genBuff(400), 1)
-  print(genImageBuff_sc8:size())
+  local newImage, newLable =  adversarial8.genBuff(200)
+  print(genImageBuff_sc8)
+  print(genLableBuff_sc8)
+  genImageBuff_sc8 = torch.cat(genImageBuff_sc8, newImage, 1)
+  genLableBuff_sc8 = torch.cat(genLableBuff_sc8, newLable, 1)
   -- train/test
   adversarial8.train(trainData8) --one epoch
   adversarial8.test(valData8)

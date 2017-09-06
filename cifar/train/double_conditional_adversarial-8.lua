@@ -126,18 +126,28 @@ function adversarial_sc8.train(dataset, N)
       targets[{{1,dataBatchSize}}]:fill(1)  -- 1-64 fills 1
 
       -- (1.2) Sampled data
-      -- inputs[64-128]是生成的differ
+      -- inputs[64-96]是生成的differ
+
       noise_inputs:uniform(-1, 1)
-      for i = dataBatchSize+1,opt.batchSize do
+      for i = dataBatchSize+1,dataBatchSize+ opt.batchSize/4 do
         local idx = math.random(dataset:size())
         local sample = dataset[idx]
         class_inputs[i] = sample[1]:clone()     -- load the class vector
       end
-      local samples = model_G8:forward({ noise_inputs[{{dataBatchSize+1,opt.batchSize}}], class_inputs[{{dataBatchSize+1,opt.batchSize}}] })
-      for i = 1, dataBatchSize do
+      local samples = model_G8:forward({ noise_inputs[{{dataBatchSize+1,dataBatchSize+ opt.batchSize/4}}], class_inputs[{{dataBatchSize+1,dataBatchSize+ opt.batchSize/4}}] })
+      for i = 1, dataBatchSize/2 do
         inputs[k] = samples[i]:clone()          -- load the diff_gen
         k = k + 1
       end
+
+      num = genImageBuff_sc8:size()
+      for i = 1,opt.batchSize/4 do
+        local idx = math.random(num[1])
+        class_inputs[k] = genLableBuff_sc8[idx]:clone()     -- load the class vector
+        inputs[k] = genImageBuff_sc8[idx]:clone()
+        k = k + 1
+      end
+
       targets[{{dataBatchSize+1,opt.batchSize}}]:fill(0) --65-128 fills 0
 
       optim.sgd(fevalD, parameters_D8, sgdState_D) -- parameters_D8 is the input of fevalD
@@ -319,10 +329,24 @@ function adversarial_sc8.genBuff(num)
     local class_inputs = torch.Tensor(batchsize, class_sc8)
     local genNew = torch.Tensor(batchsize,geometry8[1], geometry8[2], geometry8[3])
 
+    noise_inputs:uniform(-1,1)
+    class_inputs:zero()
+
+    local k = 1
+    local j = 1
+    for i = 1,batchsize do
+        if k > batchsize/10 then
+            j = j + 1
+            k = 1
+        end
+        k = k + 1
+        class_inputs[i][j] = 1
+    end
+
     genNew = model_G8:forward({noise_inputs, class_inputs})
     --genImageBuff_sc8 = torch.cat(genImageBuff_sc8, genNew, 1)
     --torch.save('resource/genImage.t7', genfines)
-    return genNew
+    return genNew, class_inputs
 end
 
 -- Unnormalized parzen window type estimate (used to track performance during training)
