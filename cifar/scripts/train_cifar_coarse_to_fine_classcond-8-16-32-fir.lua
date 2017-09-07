@@ -27,7 +27,7 @@ opt = lapp[[
   --save8            (default "logs8")      subdirectory to save logs
   --save16           (default "logs16")      subdirectory to save logs
   --save32           (default "logs32")      subdirectory to save logs
-  --saveFreq         (default 10)           save every saveFreq epochs
+  --saveFreq         (default 100)           save every saveFreq epochs
   --network8         (default "")          reload pretrained network of scale 8
   --network16        (default "")          reload pretrained network of scale 16
   --network32        (default "")          reload pretrained network of scale 32
@@ -353,7 +353,7 @@ sgdState_G.learningRate = 0.02
 
 
 epoch = epoch or 1
-for i = 1,50 do  --scale 8
+for i = 1,00 do  --scale 8
 
   if i == 1 then
     genImageBuff_sc8, genLableBuff_sc8  = adversarial8.genBuff(200)
@@ -635,6 +635,20 @@ sgdState_G.learningRate = 0.02
 -- scale 32 train test process
 epoch = 1
 for i = 1,50 do  --scale 32
+
+  if i == 1 then
+    genDiffBuff_sc32, genLableBuff_sc32, genCoraseBuff_sc32  = adversarial32.genBuff(200, trainData32)
+    print('first\n')
+    print(genDiffBuff_sc32:size())
+  end
+  local newDiff, newLable, newCorase =  adversarial32.genBuff(200, trainData32)
+  print(genDiffBuff_sc32:size())
+  print(genLableBuff_sc32:size())
+  print(genCoraseBuff_sc32:size())
+  genDiffBuff_sc32 = torch.cat(genDiffBuff_sc32, newDiff, 1)
+  genLableBuff_sc32 = torch.cat(genLableBuff_sc32, newLable, 1)
+  genCoraseBuff_sc32 = torch.cat(genCoraseBuff_sc32, newCorase, 1)
+
 
   adversarial32.train(trainData32) --one epoch
   adversarial32.test(valData32)

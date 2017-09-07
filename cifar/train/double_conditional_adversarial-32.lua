@@ -134,17 +134,30 @@ function adversarial_sc32.train(dataset, N)
       -- inputs[64-128]是生成的differ
       noise_inputs:uniform(-1, 1)
       --noise_inputs:normal(0, 0.1)
-      for i = dataBatchSize+1,opt.batchSize do
+      for i = dataBatchSize+1,dataBatchSize*3/2 do
         local idx = math.random(dataset:size())
         local sample = dataset[idx]
         cond_inputs1[i] = sample[2]:clone()     -- load the label vector
         cond_inputs2[i] = sample[3]:clone()     -- load the coarse image(cond2)
       end
-      local samples = model_G32:forward({noise_inputs[{{dataBatchSize+1,opt.batchSize}}], cond_inputs1[{{dataBatchSize+1,opt.batchSize}}], cond_inputs2[{{dataBatchSize+1,opt.batchSize}}]})
-      for i = 1, dataBatchSize do
+      local samples = model_G32:forward({noise_inputs[{{dataBatchSize+1,dataBatchSize*3/2}}], cond_inputs1[{{dataBatchSize+1,dataBatchSize*3/2}}], cond_inputs2[{{dataBatchSize+1,dataBatchSize*3/2}}]})
+      for i = 1, dataBatchSize/2 do
         inputs[k] = samples[i]:clone()          -- load the diff_gen
         k = k + 1
       end
+
+      num = genDiffBuff_sc32:size()
+      --print(num[1])
+      for i = 1, opt.batchSize/4 do
+        local idx = math.random(num[1])
+        --print(idx)
+        --print(k)
+        inputs[k] = genDiffBuff_sc32[idx]
+        cond_inputs1[k] = genLableBuff_sc32[idx]
+        cond_inputs2[k] = genCoraseBuff_sc32[idx]
+        k = k + 1
+      end
+
       targets[{{dataBatchSize+1,opt.batchSize}}]:fill(0) --65-128 fills 0
 
       optim.sgd(fevalD, parameters_D32, sgdState_D) -- parameters_D32 is the input of fevalD
@@ -426,5 +439,35 @@ function adversarial_sc32.approxParzen(dataset, nsamples, nneighbors) --valdata,
 
   return distances
 end
+
+-- return the generated image of each epoch
+function adversarial_sc32.genBuff(num, dataset)
+
+  local batchsize = num or 200
+  local noise_inputs
+  noise_inputs = torch.Tensor(batchsize, noiseDim32[1],noiseDim32[2],noiseDim32[3]) --128*100
+  -- conditon inputs
+  local cond_inputs1
+  local cond_inputs2
+  cond_inputs1 = torch.Tensor(batchsize, condDim1_sc32)  --default：conDim1 = 10
+  cond_inputs2 = torch.Tensor(batchsize, condDim2_sc32[1], condDim2_sc32[2], condDim2_sc32[3]) --condDim2 = {3,32,32}
+  -- real/gen fine
+  local realfines = torch.Tensor(batchsize, condDim2_sc32[1], condDim2_sc32[2], condDim2_sc32[3])
+  local genfines = torch.Tensor(batchsize, condDim2_sc32[1], condDim2_sc32[2], condDim2_sc32[3])
+
+  for i = 1, num  do
+    local idx = math.random(dataset:size())
+    local sample = dataset[idx]
+    cond_inputs1[i] = sample[2]:clone() -- load the label
+    cond_inputs2[i] = sample[3]:clone() -- load the corase
+  end
+  noise_inputs:uniform(-1,1)
+  --noise_inputs:normal(0,0.1)
+  local genDiffers = model_G32:forward({noise_inputs, cond_inputs1, cond_inputs2})
+
+
+    return genDiffers, cond_inputs1, cond_inputs2
+end
+
 
 return adversarial_sc32
